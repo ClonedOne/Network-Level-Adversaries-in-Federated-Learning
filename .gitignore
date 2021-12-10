@@ -1,0 +1,11 @@
+env/
+src/fed_learning_keras/__pycache__/
+runParallel/__pycache__/
+*.pyc
+notebooks/.ipynb_checkpoints/
+__pycache__/
+
+*.egg-info/
+.installed.cfg
+*.egg
+*.json

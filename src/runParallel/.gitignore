@@ -1,0 +1,6 @@
+venv/
+*.txt
+*.pyc
+*.png
+*.json
+.DS_Store
