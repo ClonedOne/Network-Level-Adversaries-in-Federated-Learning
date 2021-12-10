@@ -1,0 +1,14 @@
+data/glove.6B.100d.txt filter=lfs diff=lfs merge=lfs -text
+data/trn_x_dbpedia.npy filter=lfs diff=lfs merge=lfs -text
+data/trn_x_emnist.npy filter=lfs diff=lfs merge=lfs -text
+data/trn_x_fashionMnist.npy filter=lfs diff=lfs merge=lfs -text
+data/trn_y_emnist.npy filter=lfs diff=lfs merge=lfs -text
+data/trn_y_fashionMnist.npy filter=lfs diff=lfs merge=lfs -text
+data/tst_x_dbpedia.npy filter=lfs diff=lfs merge=lfs -text
+data/tst_x_emnist.npy filter=lfs diff=lfs merge=lfs -text
+data/dbpedia_embedding_matrix.npy filter=lfs diff=lfs merge=lfs -text
+data/tst_y_emnist.npy filter=lfs diff=lfs merge=lfs -text
+data/tst_x_fashionMnist.npy filter=lfs diff=lfs merge=lfs -text
+data/tst_y_dbpedia.npy filter=lfs diff=lfs merge=lfs -text
+data/tst_y_fashionMnist.npy filter=lfs diff=lfs merge=lfs -text
+data/trn_y_dbpedia.npy filter=lfs diff=lfs merge=lfs -text
