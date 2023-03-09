@@ -115,7 +115,7 @@ def setup_argparse():
     parser_table.add_argument('--version',type=str,default=common.version['base'])
 
     parser_run= subparsers.add_parser('run', help='Run experiments for a table')
-    parser_run.add_argument('table_type', choices=['identification', 'baseline','targeted','big_plain','big_enc','big_mpc'], help= 'which table will be run')
+    parser_run.add_argument('table_type', choices=['identification', 'baseline','targeted','big_plain','big_enc','big_mpc','visibility'], help= 'which table will be run')
     parser_run.add_argument('dataset',choices=['emnist', 'fashionMnist','dbpedia'], help= 'which dataset will be used for running')
     parser_run.add_argument('--base',type=str,default=common.npy_SaveDir['base'],help ='set different base, ie : "/path/to/base"' )
     parser_run.add_argument('--version',type=str,default=common.version['base'], help ='set different version, ie : "v2"')
