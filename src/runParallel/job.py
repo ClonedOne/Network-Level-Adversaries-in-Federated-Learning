@@ -109,6 +109,8 @@ class Scheduler(object):
             tasks +=self._do_baseline()[0] 
         elif case =='targeted' :
             tasks +=self._do_idenfication_drop_comparison()[0]
+        elif case == 'visibility':
+            tasks+=self._do_visibility()[0]
         else:
             raise NotImplementedError
         
@@ -296,6 +298,44 @@ class Scheduler(object):
         }
         return tasks,dict_tasks
 
+    def _do_visibility(self):
+        experimentClasses = [0]
+        trials = [0,1,2,4]
+        visible_fracs = [0,0.2,0.4,0.8,1]
+        visible_pop_fracs = [0.2, 0.4 ,  0.8]
+
+        visibility = []
+        for targetClass,targetClientSize,trial,visible_frac, visible_pop_frac in product(experimentClasses,self.clientSizes,trials,visible_fracs,visible_pop_fracs):
+            currentJob = {}
+
+            #varies between experiements
+            currentJob["target_class"]      = targetClass # targetClass attacked , class 0 ,1 ...10
+            currentJob["num_pop_clients"]   = targetClientSize # how many client have target class points
+            
+            currentJob["trial_ind"]         = trial #trial number
+            currentJob["network_knowledge"] =  "each" #how much knowledge does the network have: random dropping, mean of updates, or update
+
+            currentJob["drop_epoch"]        =  -1 #client identification + dropping epoch T_N, set to -1 to deactivate, overrides perfect knowledge attack
+            currentJob["drop_count"]        =  0 #client id + dropping drop count k_N fixed to 10 for less computation
+
+            # same for all iterations 
+            currentJob["remove_pop_clients"]=  0 #how many clients are dropped at round 0, used in PK or RD
+            currentJob["agg_fn"]            =  "mean" #aggregate with fedavg or clipped fedavg?
+            currentJob["poison_count"]      =  0 #number of poisoned clients
+            currentJob["boost_factor"]      =  10.0 #model poisoning boost factor when poison count is 0, meaningless
+            currentJob["upsample_epoch"]    =  -1 #defensive upsampling epoch T_S, set to -1 to deactivate
+            currentJob["upsample_ct"]       =  0 #defensive upsampling client count k_S
+            currentJob["server_knowledge"]  =  "each" #how much knowledge does server have: mean of updates or update
+            currentJob["visible_frac"]  =  visible_frac #how much knowledge does server have: mean of updates or update
+            currentJob["visible_pop_frac"]  =  visible_pop_frac #how much knowledge does server have: mean of updates or update
+
+            visibility.append(currentJob)
+        
+        tasks = visibility
+        dict_tasks = {
+            "visibility":visibility,
+        }
+        return tasks,dict_tasks
 
     def _do_perfect_knowledge_randomDropping_table2(self):
         experimentClasses = [0]
@@ -1304,23 +1344,28 @@ class Scheduler(object):
 
 
     def _turnNpyFormat(self,exp_dict):
-        return f"results_upsample_multitarget_"+\
-        f"{exp_dict['target_class']}_"+\
-        f"{exp_dict['num_pop_clients']}_"+\
-        f"{exp_dict['remove_pop_clients']}_"+\
-        f"{exp_dict['drop_count']}_"+\
-        f"{exp_dict['drop_epoch']}_"+\
-        f"{exp_dict['poison_count']}_"+\
-        f"{exp_dict['trial_ind']}_"+\
-        f"{exp_dict['agg_fn']}_"+\
-        f"{exp_dict['boost_factor']}_"+\
-        f"{exp_dict['upsample_epoch']}_"+\
-        f"{exp_dict['upsample_ct']}_"+\
-        f"{exp_dict['network_knowledge']}_"+\
-        f"{exp_dict['server_knowledge']}.npy"
+        commonPart =f"results_upsample_multitarget_"+\
+            f"{exp_dict['target_class']}_"+\
+            f"{exp_dict['num_pop_clients']}_"+\
+            f"{exp_dict['remove_pop_clients']}_"+\
+            f"{exp_dict['drop_count']}_"+\
+            f"{exp_dict['drop_epoch']}_"+\
+            f"{exp_dict['poison_count']}_"+\
+            f"{exp_dict['trial_ind']}_"+\
+            f"{exp_dict['agg_fn']}_"+\
+            f"{exp_dict['boost_factor']}_"+\
+            f"{exp_dict['upsample_epoch']}_"+\
+            f"{exp_dict['upsample_ct']}_"+\
+            f"{exp_dict['network_knowledge']}_"+\
+            f"{exp_dict['server_knowledge']}"
+
+        if exp_dict.get('visible_frac') != None and exp_dict.get('visible_pop_frac') != None:
+            commonPart = f"{commonPart}_{exp_dict['visible_frac']}_{exp_dict['visible_pop_frac']}"  
+        
+        return f"{commonPart}.npy"
 
     def _turnRunCommandFormat(self,exp_dict):
-        return self.execfile +\
+        firstPart = self.execfile +\
         f"{exp_dict['target_class']} "+\
         f"{exp_dict['num_pop_clients']} "+\
         f"{exp_dict['remove_pop_clients']} "+\
@@ -1333,9 +1378,13 @@ class Scheduler(object):
         f"{exp_dict['upsample_epoch']} "+\
         f"{exp_dict['upsample_ct']} "+\
         f"{exp_dict['network_knowledge']} "+\
-        f"{exp_dict['server_knowledge']} "+ \
-        \
-        f" > " + self.logsDir + "/output_"+\
+        f"{exp_dict['server_knowledge']} "
+
+        if exp_dict.get('visible_frac') != None and exp_dict.get('visible_pop_frac') != None:
+            firstPart = f"{firstPart} {exp_dict['visible_frac']} {exp_dict['visible_pop_frac']}"
+
+
+        secondPart = f" > " + self.logsDir + "/output_"+\
         f"{exp_dict['target_class']}_"+\
         f"{exp_dict['num_pop_clients']}_"+\
         f"{exp_dict['remove_pop_clients']}_"+\
@@ -1348,7 +1397,14 @@ class Scheduler(object):
         f"{exp_dict['upsample_epoch']}_"+\
         f"{exp_dict['upsample_ct']}_"+\
         f"{exp_dict['network_knowledge']}_"+\
-        f"{exp_dict['server_knowledge']}.txt" + "  2>&1"
+        f"{exp_dict['server_knowledge']}"
+
+        if exp_dict.get('visible_frac') != None and exp_dict.get('visible_pop_frac') != None:
+            secondPart = f"{secondPart}_{exp_dict['visible_frac']}_{exp_dict['visible_pop_frac']}"
+
+      
+
+        return  f"{firstPart}{secondPart}.txt 2>&1"
 
 
         

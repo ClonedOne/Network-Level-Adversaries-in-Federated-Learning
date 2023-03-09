@@ -26,9 +26,11 @@ source env/bin/activate
 
 #### Clone the repo
 ```bash
-git clone 'REPO'
+git lfs clone 'REPO'
 cd 'REPO'
 ```
+
+If there are issues with cloning with `git lfs` related to exceeding the lfs quota, the content of the `data/` folder can be downloaded from [this link.](https://drive.google.com/file/d/1E_rd1X8D2HNRcUYe7_wmoQBbAWDQiyXB/view?usp=share_link)
 
 #### Check your python version>=3.8.10
 ``` bash

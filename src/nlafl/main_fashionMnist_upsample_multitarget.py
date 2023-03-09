@@ -46,6 +46,10 @@ agg_improvements_defender = defaultdict(list)
 each_improvements_attacker = defaultdict(list)
 each_improvements_defender = defaultdict(list)
 
+# List of visible clients for adversary
+visibility = None
+
+
 # AUXILIARY FUNCTIONS
 
 def update_information(
@@ -134,7 +138,7 @@ def update_information(
     return cur_performance_defender[0],cur_performance_attacker[0]
 
 
-def create_dropli(ct, knowledge_dict, pop_clients):
+def create_dropli(ct, knowledge_dict, pop_clients, visibility=None):
     """ Create list of clients to drop
 
     The selected clients will be the ones with the lowest average loss on the target
@@ -155,8 +159,22 @@ def create_dropli(ct, knowledge_dict, pop_clients):
     # Compute overlap between dropped clients and actual target clients
     overlap = len([i for i in worst_means if i in pop_clients])
     print(f"Removing {worst_means}, {overlap} 0 clients")
+    
+    # If adversary has limited visibility, assign infinite loss to invisible clients .ie. np.inf
+    partial_worst_means = []
+    if visibility is not None:
 
-    return worst_means
+        partial_all_changes = []
+        for ind in range(NUM_USERS):
+            if ind in visibility:
+                partial_all_changes.append(knowledge_dict.get(ind, np.inf))
+            else:
+                partial_all_changes.append(np.inf)
+
+        partial_all_means = [np.mean(change) for change in partial_all_changes]
+        partial_worst_means = np.argsort(partial_all_means)[:ct]
+
+    return worst_means,partial_worst_means
 
 
 def upsample(knowledge_dict, ct, drop_li):
@@ -200,6 +218,20 @@ def upsample(knowledge_dict, ct, drop_li):
     return probs
 
 
+
+
+def populate_visibility(num_users,num_pop_clients,visible_frac,visible_alpha):
+
+    weight_list = [visible_alpha] * num_pop_clients + [1] * (num_users-num_pop_clients)
+    assert len(weight_list) == num_users
+    sample_prob = np.random.dirichlet(weight_list)
+    visibility  = np.random.choice(list(range(num_users)),
+        size=int(num_users*visible_frac), p=sample_prob, replace=False)
+
+    return visibility
+
+
+
 # MAIN SCRIPT
 
 def setup_argparse():
@@ -230,6 +262,10 @@ def setup_argparse():
                         'random', 'agg', 'each'], help='how much knowledge does the network have: random dropping, mean of updates, or update')
     parser.add_argument('server_knowledge', choices=[
                         'agg', 'each'], help='how much knowledge does server have: mean of updates or update')
+    parser.add_argument("visible_frac", nargs="?" , default=None, type=float)
+    parser.add_argument("visible_alpha", nargs="?",default=None, type=float)
+
+
     return parser
 
 
@@ -250,6 +286,12 @@ if __name__ == '__main__':
     np.random.seed(seed)
     random.seed(seed)
     tf.random.set_seed(seed)
+
+    # Populate adversary visibility list
+    if (args.visible_frac is not None) and (args.visible_alpha is not None):
+        visibility = populate_visibility(NUM_USERS, args.num_pop_clients,
+            args.visible_frac, args.visible_alpha)
+        print(f'Visibility Set of Attacker: {visibility}')
 
     # Initialize structures to keep track of the loss improvement
     # for each client on the target population
@@ -415,7 +457,7 @@ if __name__ == '__main__':
 
         # Simulate the protocol for each client
         for client_ind in idxs_users:
-
+            
             # Skip clients in `target_clients` to simulate dropping
             if client_ind in target_clients:
                 print(f"Skipping client: {client_ind}")
@@ -494,10 +536,11 @@ if __name__ == '__main__':
 
         # Create the droplist of clients if round >= args.drop_epoch
         if args.drop_epoch != -1 and r >= args.drop_epoch:
-            target_clients = create_dropli(
+            target_clients, visible_target_clients = create_dropli(
                 args.drop_count,
                 network_dict,
-                pop_clients
+                pop_clients,
+                visibility=visibility
             )
 
         # Update the sampling probabilties if round >= args.upsample_epoch
@@ -514,6 +557,9 @@ if __name__ == '__main__':
                 i for (i, p) in enumerate(sample_probs) if p > (1 / NUM_USERS)
             ]
             print('Clients to upsample:', upsample_inds)
+
+        if visibility is not None and args.drop_epoch != -1 and r >= args.drop_epoch:
+            target_clients = visible_target_clients
 
         # Save the loss information dictionaries for the current round
         per_round_agg_improvements_attacker.append(deepcopy(agg_improvements_attacker))
@@ -545,25 +591,49 @@ if __name__ == '__main__':
         'per_round_defender_overlap':per_round_defender_overlap,
 
     }
+    if (args.visible_frac == None) and (args.visible_alpha == None):
+
+        npyFilePath = "results_upsample_multitarget_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npy".format(
+                args.target_class,
+                args.num_pop_clients,
+                args.remove_pop_clients,
+                args.drop_count,
+                args.drop_epoch,
+                args.poison_count,
+                args.trial_ind,
+                args.agg_fn,
+                args.boost_factor,
+                args.upsample_epoch,
+                args.upsample_ct,
+                args.network_knowledge,
+                args.server_knowledge
+            )
+    else:
+            npyFilePath = "results_upsample_multitarget_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npy".format(
+                args.target_class,
+                args.num_pop_clients,
+                args.remove_pop_clients,
+                args.drop_count,
+                args.drop_epoch,
+                args.poison_count,
+                args.trial_ind,
+                args.agg_fn,
+                args.boost_factor,
+                args.upsample_epoch,
+                args.upsample_ct,
+                args.network_knowledge,
+                args.server_knowledge,
+                args.visible_frac,
+                args.visible_alpha
+
+            )
+        
 
     # Save all the results
     np.save(os.path.expanduser(os.path.join(
         common.npy_SaveDir["fashionMnist"],
         "v1",
-        "results_upsample_multitarget_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}.npy".format(
-            args.target_class,
-            args.num_pop_clients,
-            args.remove_pop_clients,
-            args.drop_count,
-            args.drop_epoch,
-            args.poison_count,
-            args.trial_ind,
-            args.agg_fn,
-            args.boost_factor,
-            args.upsample_epoch,
-            args.upsample_ct,
-            args.network_knowledge,
-            args.server_knowledge
-        ))),
+        npyFilePath
+        )),
         result_dict
     )
